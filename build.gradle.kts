@@ -19,6 +19,14 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+tasks {
+    task("run", JavaExec::class) {
+        group = "run"
+        description = "Starts the application, listens to input signals and relays them via sockets"
+        classpath = sourceSets.main.get().runtimeClasspath
+        mainClass = "org.example.MainKt"
+    }
+}
 kotlin {
     jvmToolchain(21)
 }
