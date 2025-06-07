@@ -7,7 +7,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.apache.log4j.PropertyConfigurator
 import org.example.inputDevice.RotaryEncoder
-import org.example.inputDevice.RotaryEncoderImpl
+import org.example.inputDevice.KY_040
+import org.example.inputDevice.MFRC522
+import org.example.inputDevice.RFIDReader
 import kotlin.time.Duration.Companion.seconds
 
 private val log = KotlinLogging.logger { }
@@ -18,7 +20,7 @@ fun main(args: Array<String>): Unit = runBlocking {
     //Configure logging
     PropertyConfigurator.configure("log4j.properties")
     val pi4j = Pi4J.newAutoContext()
-    val encoder: RotaryEncoder = RotaryEncoderImpl(pi4j, "p1", 17, 27, 22, this)
+    val encoder: RotaryEncoder = KY_040(pi4j, "p1", 17, 27, 22, this)
     launch {
         encoder.turn.collect {
             log.debug { it }
@@ -30,6 +32,9 @@ fun main(args: Array<String>): Unit = runBlocking {
     launch {
         encoder.turnCounter.collect { log.debug { it } }
     }
+    val reader: RFIDReader = MFRC522(pi4j, "p1", this)
+    reader.getVersion()
     delay(100.seconds)
     pi4j.shutdown()
+    log.info { "Successfully shutdown program resources, exiting application" }
 }

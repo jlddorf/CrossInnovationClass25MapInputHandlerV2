@@ -26,7 +26,7 @@ interface RotaryEncoder {
     val turnCounter: StateFlow<Int>
 }
 
-class RotaryEncoderImpl(
+class KY_040(
     context: Context,
     id: String,
     clkPinNumber: Int,

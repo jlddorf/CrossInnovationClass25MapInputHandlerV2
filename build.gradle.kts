@@ -13,6 +13,7 @@ dependencies {
     implementation("com.pi4j:pi4j-core:3.0.2")
     implementation("com.pi4j:pi4j-plugin-gpiod:3.0.2")
     implementation("com.pi4j:pi4j-plugin-raspberrypi:3.0.2")
+    implementation("com.pi4j:pi4j-plugin-linuxfs:3.0.2")
     implementation("org.slf4j:slf4j-api:2.0.17")
     implementation("org.slf4j:slf4j-reload4j:2.0.17")
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.7")
