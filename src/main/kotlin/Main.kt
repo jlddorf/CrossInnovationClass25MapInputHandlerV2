@@ -18,7 +18,7 @@ fun main(args: Array<String>): Unit = runBlocking {
     //Configure logging
     PropertyConfigurator.configure("log4j.properties")
     val pi4j = Pi4J.newAutoContext()
-    val encoder: RotaryEncoder = RotaryEncoderImpl(pi4j, "p1", 17, 27, this)
+    val encoder: RotaryEncoder = RotaryEncoderImpl(pi4j, "p1", 17, 27, 22, this)
     launch {
         encoder.turn.collect {
             log.debug { it }

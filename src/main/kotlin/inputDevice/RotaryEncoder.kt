@@ -31,6 +31,7 @@ class RotaryEncoderImpl(
     id: String,
     clkPinNumber: Int,
     dtPinNumber: Int,
+    swPinNumber: Int,
     coroutineScope: CoroutineScope
 ) : RotaryEncoder {
     private val _turnCounter = MutableStateFlow(0)
@@ -61,8 +62,8 @@ class RotaryEncoderImpl(
 
     private val buttonConfig = DigitalInput.newConfigBuilder(context).apply {
         id("button")
-        name("Press button")
-        address(22)
+        name("$id Button")
+        address(swPinNumber)
         pull(PullResistance.PULL_DOWN)
         debounce(3000L)
     }
@@ -93,5 +94,6 @@ class RotaryEncoderImpl(
                 }
             }
         })
+        log.info { "Successfully initialized rotary encoder with id $id" }
     }
 }
