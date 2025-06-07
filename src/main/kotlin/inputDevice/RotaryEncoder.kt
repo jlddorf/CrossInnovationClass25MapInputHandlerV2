@@ -5,13 +5,43 @@ import com.pi4j.io.gpio.digital.DigitalInput
 import com.pi4j.io.gpio.digital.DigitalState
 import com.pi4j.io.gpio.digital.PullResistance
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 private val log = KotlinLogging.logger { }
 
-class RotaryEncoder(context: Context, id: String, clkPinNumber: Int, dtPinNumber: Int) {
-    var counter = 0
+enum class Direction {
+    CLOCKWISE, ANTI_CLOCKWISE
+}
 
-    private var isSecond = false
+interface RotaryEncoder {
+    val turn: Flow<Direction>
+    val buttonPress: Flow<Unit>
+    val turnCounter: StateFlow<Int>
+}
+
+class RotaryEncoderImpl(
+    context: Context,
+    id: String,
+    clkPinNumber: Int,
+    dtPinNumber: Int,
+    coroutineScope: CoroutineScope
+) : RotaryEncoder {
+    private val _turnCounter = MutableStateFlow(0)
+    private val _turn = MutableSharedFlow<Direction>()
+    private val _buttonPress = MutableSharedFlow<Unit>()
+
+    override val turnCounter: StateFlow<Int> = _turnCounter.asStateFlow()
+    override val turn: Flow<Direction> = _turn.asSharedFlow()
+    override val buttonPress: Flow<Unit> = _buttonPress.asSharedFlow()
+
+    private val isSecond = MutableStateFlow(false)
     private val clkConfig = DigitalInput.newConfigBuilder(context).apply {
         id("${id}CLK")
         name("$id CLK Pin")
@@ -41,19 +71,26 @@ class RotaryEncoder(context: Context, id: String, clkPinNumber: Int, dtPinNumber
 
     init {
         clkPin.addListener({ e ->
-            if (isSecond) {
+            if (isSecond.value) {
                 if (e.state() != dtPin.state()) {
-                    counter++
+                    coroutineScope.launch {
+                        _turnCounter.value = _turnCounter.value + 1
+                        _turn.emit(Direction.CLOCKWISE)
+                    }
                 } else {
-                    counter--
+                    coroutineScope.launch {
+                        _turnCounter.value = _turnCounter.value - 1
+                        _turn.emit(Direction.ANTI_CLOCKWISE)
+                    }
                 }
-                log.debug { counter }
             }
-            isSecond = !isSecond
+            isSecond.value = !isSecond.value
         })
         button.addListener({ e ->
             if (e.state() == DigitalState.LOW) {
-                log.debug { "Button was pressed" }
+                coroutineScope.launch {
+                    _buttonPress.emit(Unit)
+                }
             }
         })
     }
