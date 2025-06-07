@@ -4,6 +4,9 @@ import com.pi4j.context.Context
 import com.pi4j.io.gpio.digital.DigitalInput
 import com.pi4j.io.gpio.digital.DigitalState
 import com.pi4j.io.gpio.digital.PullResistance
+import io.github.oshai.kotlinlogging.KotlinLogging
+
+private val log = KotlinLogging.logger { }
 
 class RotaryEncoder(context: Context, id: String, clkPinNumber: Int, dtPinNumber: Int) {
     var counter = 0
@@ -44,13 +47,13 @@ class RotaryEncoder(context: Context, id: String, clkPinNumber: Int, dtPinNumber
                 } else {
                     counter--
                 }
-                println(counter)
+                log.debug { counter }
             }
             isSecond = !isSecond
         })
         button.addListener({ e ->
             if (e.state() == DigitalState.LOW) {
-                println("Button was pressed")
+                log.debug { "Button was pressed" }
             }
         })
     }
