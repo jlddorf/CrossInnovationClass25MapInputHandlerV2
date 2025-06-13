@@ -9,8 +9,12 @@ import com.pi4j.io.spi.SpiChipSelect
 import com.pi4j.io.spi.SpiMode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.time.withTimeoutOrNull
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.experimental.and
 import kotlin.experimental.inv
 import kotlin.experimental.or
@@ -22,7 +26,7 @@ interface RFIDReader {
     fun writeData(): Boolean
 }
 
-class MFRC522(context: Context, id: String, val coroutineScope: CoroutineScope) : RFIDReader {
+class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineScope) : RFIDReader {
     private val spiConfig = Spi.newConfigBuilder(context).apply {
         id(id)
         name("MFRC $id")
@@ -61,13 +65,6 @@ class MFRC522(context: Context, id: String, val coroutineScope: CoroutineScope) 
         return "toSend.toString()"
     }
 
-    private fun sendCommand(command: Command) {
-        coroutineScope.launch {
-            val toSend = byteArrayOf(getByteToSend(Access.WRITE, Register.COMMAND), command.commandCode)
-            spi.write(toSend)
-        }
-    }
-
     private fun readRegister(register: Register): Byte {
         val transferArray = byteArrayOf(getByteToSend(Access.READ, register), STOP_READ)
         spi.transfer(transferArray)
@@ -77,6 +74,11 @@ class MFRC522(context: Context, id: String, val coroutineScope: CoroutineScope) 
     private fun writeRegister(register: Register, toWrite: Byte) {
         val toSend = byteArrayOf(getByteToSend(Access.WRITE, register), toWrite)
         spi.transfer(toSend)
+    }
+
+    private fun close() {
+        spi.close()
+        //TODO Close Pin connections as well
     }
 
     private fun clearBitMask(register: Register, mask: Byte) {
@@ -95,15 +97,92 @@ class MFRC522(context: Context, id: String, val coroutineScope: CoroutineScope) 
     }
 
     private fun reset() {
-        writeRegister(Register.COMMAND, PCD.RESETPHASE.code)
+        writeRegister(Register.COMMAND, Command.RESETPHASE.code)
     }
 
     private fun antennaOn() {
         val currentStatus = readRegister(Register.TX_CONTROL)
 
-        if((currentStatus and 0x03).toInt() != 0x03) {
+        if ((currentStatus and 0x03).toInt() != 0x03) {
             setBitMask(Register.TX_CONTROL, 0x03)
         }
+    }
+
+    private fun antennaOff() {
+        clearBitMask(Register.TX_CONTROL, 0x03)
+    }
+
+    private suspend fun toCard(command: Command, sendData: List<Byte>): {
+        val data = mutableListOf<Byte>()
+        val status = MutableStateFlow(Status.MI_ERR)
+        val lastBits = MutableStateFlow<Byte>(0)
+        val received = MutableStateFlow(0)
+        val bitLength = MutableStateFlow(0)
+
+        val irqEn = MutableStateFlow<Byte>(0x00)
+        val waitIRq = MutableStateFlow<Byte>(0x00)
+        if (command == Command.AUTHENT) {
+            irqEn.value = 0x12
+            waitIRq.value = 0x10
+        }
+        if (command == Command.RECEIVE) {
+            irqEn.value = 0x77
+            waitIRq.value = 0x30
+        }
+
+        writeRegister(Register.COMM_IEN, irqEn.value or 0x80.toByte())
+        clearBitMask(Register.COMM_IRQ, 0x80.toByte())
+        setBitMask(Register.FIFO_LEVEL, 0x80.toByte())
+
+        writeRegister(Register.COMMAND, Command.IDLE.code)
+
+        for (i in sendData) {
+            writeRegister(Register.FIFO_DATA, i)
+        }
+        if (command == Command.TRANSCEIVE) {
+            setBitMask(Register.BIT_FRAMING, 0x80.toByte())
+        }
+        val execution = withTimeoutOrNull(2000) {
+            while (true) {
+                delay(200)
+                received.value = readRegister(Register.COMM_IRQ).toInt()
+                if (received.value and 0x01 != 0 || received.value and waitIRq.value.toInt() != 0) {
+                    break
+                }
+            }
+            Unit
+        }
+        clearBitMask(Register.BIT_FRAMING, 0x80.toByte())
+        if (execution != null) {
+            if (readRegister(Register.ERROR) and 0x1B == 0x00.toByte()) {
+                status.value = Status.MI_OK
+                if (received.value and irqEn.value.toInt() and 0x01 != 0) {
+                    status.value = Status.MI_NOTAGERR
+                }
+
+                if (command == Command.TRANSCEIVE) {
+                    received.value = readRegister(Register.FIFO_LEVEL).toInt()
+                    lastBits.value = readRegister(Register.CONTROL) and 0x07
+                    if (lastBits.value != 0.toByte()) {
+                        bitLength.value = (received.value - 1) * 8 + lastBits.value.toInt()
+                    } else {
+                        bitLength.value = received.value * 8
+                    }
+                    if (received.value == 0) {
+                        received.value = 1
+                    }
+                    if (received.value > MAX_LENGTH) {
+                        received.value = MAX_LENGTH
+                    }
+                    for (i in 0 until received.value) {
+                        data.add(readRegister(Register.FIFO_DATA))
+                    }
+                }
+            } else {
+                status.value = Status.MI_ERR
+            }
+        }
+        return Response(status.value, data, bitLength.value)
     }
 
     private fun getByteToSend(type: Access, register: Register): Byte {
@@ -204,14 +283,9 @@ class MFRC522(context: Context, id: String, val coroutineScope: CoroutineScope) 
             STOP_READ_FLAG(0x00),
         }
 
-        enum class Command(val commandCode: Byte) {
-            IDLE(0),
-            MEM(1)
-        }
-
         val STOP_READ: Byte = Flag.STOP_READ_FLAG.flag.toByte()
 
-        enum class PCD(val code: Byte) {
+        enum class Command(val code: Byte) {
             IDLE(0x00),
             AUTHENT(0x0E),
             RECEIVE(0x08),
@@ -221,8 +295,18 @@ class MFRC522(context: Context, id: String, val coroutineScope: CoroutineScope) 
             CALCCRC(0x03),
         }
 
+        enum class Status(val code: Int) {
+            MI_OK(0),
+            MI_NOTAGERR(1),
+            MI_ERR(2)
+        }
+
         enum class Access {
             READ, WRITE
         }
+
+        val MAX_LENGTH = 16
     }
 }
+
+data class Response(val status: MFRC522.Companion.Status, val data: List<Byte>, val bitLength: Int)
