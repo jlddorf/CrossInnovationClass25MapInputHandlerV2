@@ -13,6 +13,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.time.withTimeoutOrNull
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.experimental.and
@@ -112,7 +113,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         clearBitMask(Register.TX_CONTROL, 0x03)
     }
 
-    private suspend fun toCard(command: Command, sendData: List<Byte>): {
+    private suspend fun toCard(command: Command, sendData: List<Byte>): Response {
         val data = mutableListOf<Byte>()
         val status = MutableStateFlow(Status.MI_ERR)
         val lastBits = MutableStateFlow<Byte>(0)
@@ -183,6 +184,53 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
             }
         }
         return Response(status.value, data, bitLength.value)
+    }
+
+    private suspend fun request(reqMode: Byte): Pair<Status, Int> {
+        val status = MutableStateFlow<Status>(Status.MI_OK)
+        val tagType = mutableListOf<Byte>()
+
+        writeRegister(Register.BIT_FRAMING, 0x07)
+        tagType.add(reqMode)
+
+        val response = toCard(Command.TRANSCEIVE, tagType)
+
+        if (response.status != Status.MI_OK || response.bitLength != 0x10) {
+            status.value = Status.MI_ERR
+        }
+        return status.value to response.bitLength
+    }
+
+    private suspend fun anticoll(): Pair<Status, List<Byte>> {
+        val data = mutableListOf<Byte>()
+        val serNumCheck = MutableStateFlow(0)
+
+        val serNum = mutableListOf<Byte>()
+        val status = MutableStateFlow(Status.MI_ERR)
+
+        writeRegister(Register.BIT_FRAMING, 0x00)
+
+        serNum.add(PICC.ANTICOLL.code)
+        serNum.add(0x20)
+
+        val response = toCard(Command.TRANSCEIVE, serNum)
+        status.value = response.status
+
+        if (response.status != Status.MI_OK) {
+            val i = 0
+            if (response.data.size == 5) {
+                for (i in 0 until 5) {
+                    serNumCheck.value = serNumCheck.value xor response.data[i].toInt()
+                }
+                if (serNumCheck.value != response.data[4].toInt()) {
+                    status.value = Status.MI_ERR
+                }
+            }
+            else {
+                status.value = Status.MI_ERR
+            }
+        }
+        return status.value to data
     }
 
     private fun getByteToSend(type: Access, register: Register): Byte {
@@ -275,6 +323,22 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
             RESERVED32(0x3D),
             RESERVED33(0x3E),
             RESERVED34(0x3F),
+        }
+
+        enum class PICC(val code: Byte) {
+            REQIDL(0x26),
+            REQALL(0x52),
+            ANTICOLL(0x93.toByte()),
+            SElECTTAG(0x93.toByte()),
+            AUTHENT1A(0x60),
+            AUTHENT1B(0x61),
+            READ(0x30),
+            WRITE(0xA0.toByte()),
+            DECREMENT(0xC0.toByte()),
+            INCREMENT(0xC1.toByte()),
+            RESTORE(0xC2.toByte()),
+            TRANSFER(0xB0.toByte()),
+            HALT(0x50),
         }
 
         enum class Flag(val flag: Int) {
