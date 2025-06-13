@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.experimental.and
 import kotlin.experimental.inv
+import kotlin.experimental.or
 
 private val log = KotlinLogging.logger { }
 
@@ -83,12 +84,26 @@ class MFRC522(context: Context, id: String, val coroutineScope: CoroutineScope) 
         writeRegister(register, current and mask.inv())
     }
 
+    private fun setBitMask(register: Register, mask: Byte) {
+        val current = readRegister(register)
+
+        writeRegister(register, current or mask)
+    }
+
     private fun stopCrypto1() {
         clearBitMask(Register.STATUS2, 0x08)
     }
 
     private fun reset() {
         writeRegister(Register.COMMAND, PCD.RESETPHASE.code)
+    }
+
+    private fun antennaOn() {
+        val currentStatus = readRegister(Register.TX_CONTROL)
+
+        if((currentStatus and 0x03).toInt() != 0x03) {
+            setBitMask(Register.TX_CONTROL, 0x03)
+        }
     }
 
     private fun getByteToSend(type: Access, register: Register): Byte {
@@ -99,7 +114,17 @@ class MFRC522(context: Context, id: String, val coroutineScope: CoroutineScope) 
     }
 
     init {
+        reset()
 
+        writeRegister(Register.T_MODE, 0x8D.toByte())
+        writeRegister(Register.T_PRESCALER, 0x3E.toByte())
+        writeRegister(Register.T_RELOAD_L, 30.toByte())
+        writeRegister(Register.T_RELOAD_H, 0.toByte())
+
+        writeRegister(Register.TX_AUTO, 0x40.toByte())
+        writeRegister(Register.MODE, 0x3D.toByte())
+
+        antennaOn()
     }
 
     companion object {
