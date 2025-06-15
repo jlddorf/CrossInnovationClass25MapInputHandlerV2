@@ -9,12 +9,8 @@ import com.pi4j.io.spi.SpiChipSelect
 import com.pi4j.io.spi.SpiMode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.time.withTimeoutOrNull
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.experimental.and
 import kotlin.experimental.inv
@@ -45,26 +41,10 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
 
     private val stopAuth = ::stopCrypto1
 
-    @OptIn(ExperimentalStdlibApi::class)
-    fun getVersion(): String {
-        coroutineScope.launch {
-            resetPin.state(DigitalState.HIGH)
-            delay(10)
-            val toSend = byteArrayOf(getByteToSend(Access.READ, Register.VERSION), STOP_READ)
-            println("Transferring with return ${spi.transfer(toSend)}")
-
-            log.debug {
-                "Received MFRC522 version: " + toSend.contentToString() + " with hex ${
-                    toSend.getOrNull(1)?.toHexString()
-                }"
-            }
-        }
-        return "toSend.toString()"
-    }
-
     private fun readRegister(register: Register): Byte {
         val transferArray = byteArrayOf(getByteToSend(Access.READ, register), STOP_READ)
         spi.transfer(transferArray)
+        log.trace { "Tried to read register $register with result ${transferArray.getOrNull(1)}" }
         return transferArray.getOrNull(1) ?: throw RuntimeException("Can't access red byte at index 1")
     }
 
@@ -118,7 +98,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
             irqEn.value = 0x12
             waitIRq.value = 0x10
         }
-        if (command == Command.RECEIVE) {
+        if (command == Command.TRANSCEIVE) {
             irqEn.value = 0x77
             waitIRq.value = 0x30
         }
@@ -135,7 +115,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         if (command == Command.TRANSCEIVE) {
             setBitMask(Register.BIT_FRAMING, 0x80.toByte())
         }
-        val execution = withTimeoutOrNull(2000) {
+        val execution = withTimeoutOrNull(10_000) {
             while (true) {
                 delay(200)
                 received.value = readRegister(Register.COMM_IRQ).toInt()
@@ -179,7 +159,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
     }
 
     suspend fun request(reqMode: Byte): Pair<Status, Int> {
-        val status = MutableStateFlow<Status>(Status.MI_OK)
+        val status = MutableStateFlow(Status.MI_OK)
         val tagType = mutableListOf<Byte>()
 
         writeRegister(Register.BIT_FRAMING, 0x07)
@@ -208,7 +188,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         val response = toCard(Command.TRANSCEIVE, serNum)
         status.value = response.status
 
-        if (response.status != Status.MI_OK) {
+        if (response.status == Status.MI_OK) {
             val i = 0
             if (response.data.size == 5) {
                 for (i in 0 until 5) {

@@ -10,6 +10,7 @@ import org.example.inputDevice.RotaryEncoder
 import org.example.inputDevice.KY_040
 import org.example.inputDevice.MFRC522
 import org.example.inputDevice.RFIDReader
+import org.example.inputDevice.SimpleMFRC
 import kotlin.time.Duration.Companion.seconds
 
 private val log = KotlinLogging.logger { }
@@ -32,8 +33,11 @@ fun main(args: Array<String>): Unit = runBlocking {
     launch {
         encoder.turnCounter.collect { log.debug { it } }
     }
-    val reader: RFIDReader = MFRC522(pi4j, "p1", this)
-    reader.getVersion()
+    val reader: RFIDReader = SimpleMFRC(pi4j, "r1", this)
+    launch {
+        val id = reader.readId()
+        log.info { "Found item with id $id" }
+    }
     delay(100.seconds)
     pi4j.shutdown()
     log.info { "Successfully shutdown program resources, exiting application" }

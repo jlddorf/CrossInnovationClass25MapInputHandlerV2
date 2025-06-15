@@ -1,8 +1,11 @@
 package org.example.inputDevice
 
 import com.pi4j.context.Context
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+
+private val log = KotlinLogging.logger { }
 
 interface RFIDReader {
     suspend fun read(): Pair<Int, String>
@@ -36,8 +39,10 @@ class SimpleMFRC(
 
     override suspend fun readId(): Int {
         val response = MutableStateFlow(reader.readIDNoBlock())
+        log.trace { "Trying to read id with result ${response.value}" }
         while (response.value == null) {
             response.value = reader.readIDNoBlock()
+            log.trace { "Trying to read id with result ${response.value}" }
         }
         return response.value ?: -1
     }
