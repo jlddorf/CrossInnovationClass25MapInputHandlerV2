@@ -21,7 +21,7 @@ fun main(args: Array<String>): Unit = runBlocking {
     //Configure logging
     PropertyConfigurator.configure("log4j.properties")
     val pi4j = Pi4J.newAutoContext()
-    val encoder: RotaryEncoder = KY_040(pi4j, "p1", 17, 27, 22, this)
+/*    val encoder: RotaryEncoder = KY_040(pi4j, "p1", 17, 27, 22, this)
     launch {
         encoder.turn.collect {
             log.debug { it }
@@ -32,7 +32,7 @@ fun main(args: Array<String>): Unit = runBlocking {
     }
     launch {
         encoder.turnCounter.collect { log.debug { it } }
-    }
+    }*/
     val reader: RFIDReader = SimpleMFRC(pi4j, "r1", this)
     launch {
         val id = reader.readId()

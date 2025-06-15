@@ -90,7 +90,7 @@ class BasicMFRC522(
                     }
                 }
                 if (data.isNotEmpty()) {
-                    text.append(data.joinToString(""))
+                    text.append(data.map { it.toInt().toChar() }.joinToString(""))
                 }
             }
             reader.stopCrypto1()
@@ -176,7 +176,7 @@ class BasicMFRC522(
     private fun uidToNum(uid: List<Byte>): Int {
         val n = MutableStateFlow(0)
         for (i in 0 until 5) {
-            n.value = n.value * 256 * uid[i]
+            n.value = n.value * 256 + uid[i]
         }
         return n.value
     }

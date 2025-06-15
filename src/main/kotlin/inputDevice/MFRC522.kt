@@ -26,7 +26,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         bus(SpiBus.BUS_0)
         mode(SpiMode.MODE_0)
         chipSelect(SpiChipSelect.CS_0)
-        baud(4_000_000)
+        baud(1_000_000)
     }
 
     private val resetConfig = DigitalOutput.newConfigBuilder(context).apply {
@@ -50,7 +50,8 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
 
     private fun writeRegister(register: Register, toWrite: Byte) {
         val toSend = byteArrayOf(getByteToSend(Access.WRITE, register), toWrite)
-        spi.transfer(toSend)
+        spi.transfer(toSend.clone())
+        log.trace { "Wrote ${toSend.joinToString()} from data $toWrite into $register" }
     }
 
     fun close() {
@@ -86,11 +87,11 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
     }
 
     private suspend fun toCard(command: Command, sendData: List<Byte>): Response {
-        val data = mutableListOf<Byte>()
+        val backData = mutableListOf<Byte>()
         val status = MutableStateFlow(Status.MI_ERR)
         val lastBits = MutableStateFlow<Byte>(0)
-        val received = MutableStateFlow(0)
-        val bitLength = MutableStateFlow(0)
+        val n = MutableStateFlow(0)
+        val backLen = MutableStateFlow(0)
 
         val irqEn = MutableStateFlow<Byte>(0x00)
         val waitIRq = MutableStateFlow<Byte>(0x00)
@@ -112,14 +113,17 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         for (i in sendData) {
             writeRegister(Register.FIFO_DATA, i)
         }
+
+        writeRegister(Register.COMMAND, command.code)
+
         if (command == Command.TRANSCEIVE) {
             setBitMask(Register.BIT_FRAMING, 0x80.toByte())
         }
         val execution = withTimeoutOrNull(10_000) {
             while (true) {
                 delay(200)
-                received.value = readRegister(Register.COMM_IRQ).toInt()
-                if (received.value and 0x01 != 0 || received.value and waitIRq.value.toInt() != 0) {
+                n.value = readRegister(Register.COMM_IRQ).toInt()
+                if (n.value and 0x01 != 0 || (n.value and waitIRq.value.toInt() != 0)) {
                     break
                 }
             }
@@ -127,35 +131,36 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         }
         clearBitMask(Register.BIT_FRAMING, 0x80.toByte())
         if (execution != null) {
-            if (readRegister(Register.ERROR) and 0x1B == 0x00.toByte()) {
+            if (readRegister(Register.ERROR) and 0x1B == 0.toByte()) {
                 status.value = Status.MI_OK
-                if (received.value and irqEn.value.toInt() and 0x01 != 0) {
+
+                if (n.value and irqEn.value.toInt() and 0x01 != 0) {
                     status.value = Status.MI_NOTAGERR
                 }
 
                 if (command == Command.TRANSCEIVE) {
-                    received.value = readRegister(Register.FIFO_LEVEL).toInt()
+                    n.value = readRegister(Register.FIFO_LEVEL).toInt()
                     lastBits.value = readRegister(Register.CONTROL) and 0x07
                     if (lastBits.value != 0.toByte()) {
-                        bitLength.value = (received.value - 1) * 8 + lastBits.value.toInt()
+                        backLen.value = (n.value - 1) * 8 + lastBits.value.toInt()
                     } else {
-                        bitLength.value = received.value * 8
+                        backLen.value = n.value * 8
                     }
-                    if (received.value == 0) {
-                        received.value = 1
+                    if (n.value == 0) {
+                        n.value = 1
                     }
-                    if (received.value > MAX_LENGTH) {
-                        received.value = MAX_LENGTH
+                    if (n.value > MAX_LENGTH) {
+                        n.value = MAX_LENGTH
                     }
-                    for (i in 0 until received.value) {
-                        data.add(readRegister(Register.FIFO_DATA))
+                    for (i in 0 until n.value) {
+                        backData.add(readRegister(Register.FIFO_DATA))
                     }
                 }
             } else {
                 status.value = Status.MI_ERR
             }
         }
-        return Response(status.value, data, bitLength.value)
+        return Response(status.value, backData, backLen.value).also { log.trace { "Finished toCard with result $it" } }
     }
 
     suspend fun request(reqMode: Byte): Pair<Status, Int> {
@@ -167,14 +172,13 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
 
         val response = toCard(Command.TRANSCEIVE, tagType)
 
-        if (response.status != Status.MI_OK || response.bitLength != 0x10) {
+/*        if (response.status != Status.MI_OK || response.bitLength != 8) {
             status.value = Status.MI_ERR
-        }
+        }*/
         return status.value to response.bitLength
     }
 
     suspend fun anticoll(): Pair<Status, List<Byte>> {
-        val data = mutableListOf<Byte>()
         val serNumCheck = MutableStateFlow(0)
 
         val serNum = mutableListOf<Byte>()
@@ -191,7 +195,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         if (response.status == Status.MI_OK) {
             val i = 0
             if (response.data.size == 5) {
-                for (i in 0 until 5) {
+                for (i in 0 until 4) {
                     serNumCheck.value = serNumCheck.value xor response.data[i].toInt()
                 }
                 if (serNumCheck.value != response.data[4].toInt()) {
@@ -201,7 +205,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
                 status.value = Status.MI_ERR
             }
         }
-        return status.value to data
+        return status.value to response.data
     }
 
     private fun calculateCRC(pinData: List<Byte>): List<Byte> {
@@ -342,6 +346,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
     }
 
     init {
+        resetPin.state(DigitalState.HIGH)
         reset()
 
         writeRegister(Register.T_MODE, 0x8D.toByte())
