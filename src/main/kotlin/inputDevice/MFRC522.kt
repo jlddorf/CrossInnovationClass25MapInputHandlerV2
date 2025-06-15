@@ -225,12 +225,79 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
                 if (serNumCheck.value != response.data[4].toInt()) {
                     status.value = Status.MI_ERR
                 }
-            }
-            else {
+            } else {
                 status.value = Status.MI_ERR
             }
         }
         return status.value to data
+    }
+
+    private fun calculateCRC(pinData: List<Byte>): List<Byte> {
+        clearBitMask(Register.DIV_IRQ, 0x04)
+        setBitMask(Register.FIFO_LEVEL, 0x80.toByte())
+
+        for (i in pinData) {
+            writeRegister(Register.FIFO_DATA, i)
+        }
+
+        writeRegister(Register.COMMAND, Command.CALCCRC.code)
+        for (i in 0xFF downTo 0) {
+            val current = readRegister(Register.DIV_IRQ)
+            if (current and 0x04 != 0.toByte()) {
+                break
+            }
+        }
+        val outData = mutableListOf<Byte>()
+        outData.add(readRegister(Register.CRC_RESULT_L))
+        outData.add(readRegister(Register.CRC_RESULT_M))
+        return outData
+    }
+
+    private suspend fun selectTag(serNum: List<Byte>): Int {
+        val returnedData = mutableListOf<Byte>()
+        val buffer = mutableListOf<Byte>()
+        buffer.add(PICC.SElECTTAG.code)
+        buffer.add(0x70)
+
+        for (i in 0 until 5) {
+            buffer.add(serNum[i])
+        }
+        val pOut = calculateCRC(buffer)
+        buffer.add(pOut[0])
+        buffer.add(pOut[1])
+
+        val received = toCard(Command.TRANSCEIVE, buffer)
+
+        if (received.status == Status.MI_OK && received.bitLength == 0x18) {
+            log.debug { "Size: ${received.data[0]}" }
+            return received.data[0].toInt()
+        } else return 0
+    }
+
+    private suspend fun authenticate(authMode: Byte, blockAddr: Byte, sectorKey: List<Byte>, serNum: List<Byte>): Status {
+        val buffer = mutableListOf<Byte>()
+
+        buffer.add(authMode)
+
+        buffer.add(blockAddr)
+
+        for(i in sectorKey) {
+            buffer.add(i)
+        }
+
+        for (i in 0 until 4) {
+            buffer.add(serNum[i])
+        }
+
+        val response = toCard(Command.AUTHENT, buffer)
+
+        if (response.status != Status.MI_OK) {
+            log.error { "AUTH ERROR!!" }
+        }
+        if ((readRegister(Register.STATUS2) and 0x08).toInt() == 0) {
+            log.error { "AUTH ERROR(status2reg & 0x08) != 0" }
+        }
+        return response.status
     }
 
     private fun getByteToSend(type: Access, register: Register): Byte {
