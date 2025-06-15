@@ -22,10 +22,6 @@ import kotlin.experimental.or
 
 private val log = KotlinLogging.logger { }
 
-interface RFIDReader {
-    fun getVersion(): String
-    fun writeData(): Boolean
-}
 
 class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineScope) {
     private val spiConfig = Spi.newConfigBuilder(context).apply {
@@ -325,7 +321,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         } else return null
     }
 
-    private suspend fun writeTag(blockAddr: Byte, writeData: List<Byte>) {
+    suspend fun writeTag(blockAddr: Byte, writeData: List<Byte>) {
         val buffer = mutableListOf<Byte>()
         buffer.add(PICC.WRITE.code)
         buffer.add(blockAddr)

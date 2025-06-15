@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class BasicMFRC522(
     val context: Context,
-    id: String,
+    val id: String,
     val coroutineScope: CoroutineScope,
     val key: List<Byte> = listOf(
         0xFF.toByte(),
@@ -62,8 +62,8 @@ class BasicMFRC522(
             throw IllegalArgumentException("Invalid trailer block $trailerBlock")
         }
         val address = listOf(
-            (trailerBlock - 3).toUByte(), (trailerBlock - 2).toUByte(),
-            (trailerBlock - 1).toUByte()
+            trailerBlock.toUByte() - 3.toUByte(), trailerBlock.toUByte() - 2.toUByte(),
+            trailerBlock.toUByte() - 1.toUByte()
         )
 
         val response = reader.request(MFRC522.Companion.PICC.REQIDL.code)
@@ -101,7 +101,7 @@ class BasicMFRC522(
         }
     }
 
-    fun writeSector(text: String, trailerBlock: Byte): Pair<Byte, String> {
+    suspend fun writeSector(text: String, trailerBlock: Byte): Pair<Int, String> {
         val result = MutableStateFlow(writeNoBlock(text, trailerBlock))
 
         while (result.value.first == null) {
@@ -110,7 +110,62 @@ class BasicMFRC522(
         return (result.value.first ?: -1) to (result.value.second ?: "")
     }
 
-    fun writeSectors(text: String, trailerBlocks: List<Byte>): Pair<Byte, String> {
+    suspend fun writeSectors(text: String, trailerBlocks: List<Byte>): Pair<Int, String> {
+        val textList = splitString(text)
+        val resultText = StringBuilder()
+
+        val id = MutableStateFlow<Int?>(null)
+        for (i in 0 until trailerBlocks.size) {
+            try {
+                val response = writeSector(textList[i], trailerBlocks[i])
+                resultText.append(response.second)
+                id.value = response.first
+            } catch (e: IndexOutOfBoundsException) {
+                continue
+            }
+        }
+        return (id.value ?: -1) to resultText.toString()
+    }
+
+    suspend fun writeNoBlock(text: String, trailerBlock: Byte): Pair<Int?, String?> {
+        if (!checkTrailerBlock(trailerBlock)) {
+            throw IllegalArgumentException("Invalid trailer block $trailerBlock")
+        }
+        val address = listOf(
+            trailerBlock.toUByte() - 3.toUByte(), trailerBlock.toUByte() - 2.toUByte(),
+            trailerBlock.toUByte() - 1.toUByte()
+        )
+
+        val response = reader.request(MFRC522.Companion.PICC.REQIDL.code)
+        if (response.first != MFRC522.Companion.Status.MI_OK) {
+            return null to null
+        }
+        val antiColl = reader.anticoll()
+        if (antiColl.first != MFRC522.Companion.Status.MI_OK) {
+            return null to null
+        }
+        val id = uidToNum(antiColl.second)
+        reader.selectTag(antiColl.second)
+
+        val status = reader.authenticate(MFRC522.Companion.PICC.AUTHENT1A.code, trailerBlock, key, antiColl.second)
+
+        reader.readTag(trailerBlock)
+
+        try {
+            if (status == MFRC522.Companion.Status.MI_OK) {
+                val data = Charsets.US_ASCII.encode(text.padEnd(address.size * 16)).array()
+                val i = MutableStateFlow(0)
+                for (blockNum in address) {
+                    reader.writeTag(blockNum.toByte(), data.copyOfRange(i.value * 16, (i.value + 1) * 16).toList())
+                    i.value = i.value + 1
+                }
+            }
+            reader.stopCrypto1()
+            return id to text.substring(0, address.size * 16)
+        } catch (e: Exception) {
+            reader.stopCrypto1()
+            return null to null
+        }
 
     }
 
@@ -131,5 +186,6 @@ class BasicMFRC522(
         if (list[list.lastIndex].length < 48) {
             list[list.lastIndex] += Char.MIN_VALUE.toString().repeat(48 - list[list.lastIndex].length)
         }
+        return list
     }
 }
