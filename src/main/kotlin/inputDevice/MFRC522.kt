@@ -27,7 +27,7 @@ interface RFIDReader {
     fun writeData(): Boolean
 }
 
-class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineScope) : RFIDReader {
+class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineScope) {
     private val spiConfig = Spi.newConfigBuilder(context).apply {
         id(id)
         name("MFRC $id")
@@ -50,7 +50,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
     private val stopAuth = ::stopCrypto1
 
     @OptIn(ExperimentalStdlibApi::class)
-    override fun getVersion(): String {
+    fun getVersion(): String {
         coroutineScope.launch {
             resetPin.state(DigitalState.HIGH)
             delay(10)
@@ -77,7 +77,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         spi.transfer(toSend)
     }
 
-    private fun close() {
+    fun close() {
         spi.close()
         //TODO Close Pin connections as well
     }
@@ -182,7 +182,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         return Response(status.value, data, bitLength.value)
     }
 
-    private suspend fun request(reqMode: Byte): Pair<Status, Int> {
+    suspend fun request(reqMode: Byte): Pair<Status, Int> {
         val status = MutableStateFlow<Status>(Status.MI_OK)
         val tagType = mutableListOf<Byte>()
 
@@ -197,7 +197,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         return status.value to response.bitLength
     }
 
-    private suspend fun anticoll(): Pair<Status, List<Byte>> {
+    suspend fun anticoll(): Pair<Status, List<Byte>> {
         val data = mutableListOf<Byte>()
         val serNumCheck = MutableStateFlow(0)
 
@@ -249,7 +249,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         return outData
     }
 
-    private suspend fun selectTag(serNum: List<Byte>): Int {
+    suspend fun selectTag(serNum: List<Byte>): Int {
         val returnedData = mutableListOf<Byte>()
         val buffer = mutableListOf<Byte>()
         buffer.add(PICC.SElECTTAG.code)
@@ -270,7 +270,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         } else return 0
     }
 
-    private suspend fun authenticate(
+    suspend fun authenticate(
         authMode: Byte,
         blockAddr: Byte,
         sectorKey: List<Byte>,
@@ -301,11 +301,11 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         return response.status
     }
 
-    private fun stopCrypto1() {
+    fun stopCrypto1() {
         clearBitMask(Register.STATUS2, 0x08)
     }
 
-    private suspend fun readTag(blockAddr: Byte): List<Byte>? {
+    suspend fun readTag(blockAddr: Byte): List<Byte>? {
         val receivedData = mutableListOf<Byte>()
         receivedData.add(PICC.READ.code)
         receivedData.add(blockAddr)
