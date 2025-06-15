@@ -93,10 +93,6 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         writeRegister(register, current or mask)
     }
 
-    private fun stopCrypto1() {
-        clearBitMask(Register.STATUS2, 0x08)
-    }
-
     private fun reset() {
         writeRegister(Register.COMMAND, Command.RESETPHASE.code)
     }
@@ -274,14 +270,19 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         } else return 0
     }
 
-    private suspend fun authenticate(authMode: Byte, blockAddr: Byte, sectorKey: List<Byte>, serNum: List<Byte>): Status {
+    private suspend fun authenticate(
+        authMode: Byte,
+        blockAddr: Byte,
+        sectorKey: List<Byte>,
+        serNum: List<Byte>
+    ): Status {
         val buffer = mutableListOf<Byte>()
 
         buffer.add(authMode)
 
         buffer.add(blockAddr)
 
-        for(i in sectorKey) {
+        for (i in sectorKey) {
             buffer.add(i)
         }
 
@@ -298,6 +299,63 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
             log.error { "AUTH ERROR(status2reg & 0x08) != 0" }
         }
         return response.status
+    }
+
+    private fun stopCrypto1() {
+        clearBitMask(Register.STATUS2, 0x08)
+    }
+
+    private suspend fun readTag(blockAddr: Byte): List<Byte>? {
+        val receivedData = mutableListOf<Byte>()
+        receivedData.add(PICC.READ.code)
+        receivedData.add(blockAddr)
+
+        val pOut = calculateCRC(receivedData)
+        receivedData.add(pOut[0])
+        receivedData.add(pOut[1])
+
+        val response = toCard(Command.TRANSCEIVE, receivedData)
+
+        if (response.status != Status.MI_OK) {
+            log.error { "Error while reading" }
+        }
+        if (response.bitLength == 16) {
+            log.debug { "Sector $blockAddr ${response.data}" }
+            return response.data
+        } else return null
+    }
+
+    private suspend fun writeTag(blockAddr: Byte, writeData: List<Byte>) {
+        val buffer = mutableListOf<Byte>()
+        buffer.add(PICC.WRITE.code)
+        buffer.add(blockAddr)
+
+        val check = calculateCRC(buffer)
+        buffer.add(check[0])
+        buffer.add(check[1])
+
+        val response = toCard(Command.TRANSCEIVE, buffer)
+        val status = MutableStateFlow(response.status)
+        if (response.status != Status.MI_OK || response.bitLength != 4 && (response.data[0] and 0x0F) != 0x0A.toByte()) {
+            status.value = Status.MI_ERR
+        }
+        log.debug { "${response.bitLength} backdata &0x0F == 0x0A ${response.data[0] and 0x0F}" }
+        if (status.value == Status.MI_OK) {
+            val dataBuffer = mutableListOf<Byte>()
+            for (i in 0 until 16) {
+                dataBuffer.add(writeData[i])
+            }
+            val crc = calculateCRC(dataBuffer)
+            dataBuffer.add(crc[0])
+            dataBuffer.add(crc[1])
+            val response = toCard(Command.TRANSCEIVE, dataBuffer)
+            if (response.status != Status.MI_OK || response.bitLength != 4 || (response.data[0] and 0x0F) != 0x0A.toByte()) {
+                log.error { "Error while writing" }
+            }
+            if (response.status == Status.MI_OK) {
+                log.debug { "Data written" }
+            }
+        }
     }
 
     private fun getByteToSend(type: Access, register: Register): Byte {
