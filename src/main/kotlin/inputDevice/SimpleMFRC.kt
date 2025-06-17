@@ -1,6 +1,8 @@
 package org.example.inputDevice
 
 import com.pi4j.context.Context
+import com.pi4j.io.spi.SpiBus
+import com.pi4j.io.spi.SpiChipSelect
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,10 +20,13 @@ interface RFIDReader {
 }
 
 class SimpleMFRC(
-    val context: Context,
-    val id: String,
-    val coroutineScope: CoroutineScope,
-    val key: List<Byte> = listOf(
+    context: Context,
+    id: String,
+    coroutineScope: CoroutineScope,
+    bus: SpiBus,
+    chipSelect: SpiChipSelect,
+    resetPinNum: Int,
+    key: List<Byte> = listOf(
         0xFF.toByte(),
         0xFF.toByte(),
         0xFF.toByte(),
@@ -30,7 +35,7 @@ class SimpleMFRC(
         0xFF.toByte()
     )
 ) : RFIDReader {
-    private val reader = BasicMFRC522(context, id, coroutineScope, key)
+    private val reader = BasicMFRC522(context, id, coroutineScope, bus, chipSelect, resetPinNum, key)
     private val trailerBlock = 11.toByte()
 
     override suspend fun read(): Pair<Int, String> {

@@ -1,6 +1,8 @@
 package org.example.inputDevice
 
 import com.pi4j.context.Context
+import com.pi4j.io.spi.SpiBus
+import com.pi4j.io.spi.SpiChipSelect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -9,9 +11,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
  */
 
 class BasicMFRC522(
-    val context: Context,
-    val id: String,
-    val coroutineScope: CoroutineScope,
+    context: Context,
+    id: String,
+    coroutineScope: CoroutineScope,
+    bus: SpiBus,
+    chipSelect: SpiChipSelect,
+    resetPinNum: Int,
     val key: List<Byte> = listOf(
         0xFF.toByte(),
         0xFF.toByte(),
@@ -21,7 +26,7 @@ class BasicMFRC522(
         0xFF.toByte()
     )
 ) {
-    private val reader = MFRC522(context, id, coroutineScope)
+    private val reader = MFRC522(context, id, coroutineScope, bus, chipSelect, resetPinNum)
 
     suspend fun readSector(trailerBlock: Byte): Pair<Int, String> {
         val response = MutableStateFlow(readNoBlock(trailerBlock))
