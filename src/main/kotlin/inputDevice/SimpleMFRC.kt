@@ -33,7 +33,7 @@ class SimpleMFRC(
         0xFF.toByte(),
         0xFF.toByte(),
         0xFF.toByte()
-    )
+    ),
 ) : RFIDReader {
     private val reader = BasicMFRC522(context, id, coroutineScope, bus, chipSelect, resetPinNum, key)
     private val trailerBlock = 11.toByte()

@@ -33,11 +33,7 @@ fun main(args: Array<String>): Unit = runBlocking {
     launch {
         encoder.turnCounter.collect { log.debug { it } }
     }*/
-    val reader: RFIDReader = SimpleMFRC(pi4j, "r1", this)
-    launch {
-        val id = reader.readId()
-        log.info { "Found item with id $id" }
-    }
+
     delay(100.seconds)
     pi4j.shutdown()
     log.info { "Successfully shutdown program resources, exiting application" }
