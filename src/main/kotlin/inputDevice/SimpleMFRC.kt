@@ -5,6 +5,10 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 
+/**
+ * Translation of the SimpleMFRC class from the mfrc522-python library, located at https://github.com/1AdityaX/mfrc522-python/tree/master/src/mfrc522
+ */
+
 private val log = KotlinLogging.logger { }
 
 interface RFIDReader {

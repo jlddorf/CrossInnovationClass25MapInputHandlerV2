@@ -16,6 +16,11 @@ import kotlin.experimental.and
 import kotlin.experimental.inv
 import kotlin.experimental.or
 
+/**
+ * Translation of the MFRC522 class from the mfrc522-python library, located at https://github.com/1AdityaX/mfrc522-python/tree/master/src/mfrc522
+ */
+
+
 private val log = KotlinLogging.logger { }
 
 
@@ -172,9 +177,9 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
 
         val response = toCard(Command.TRANSCEIVE, tagType)
 
-/*        if (response.status != Status.MI_OK || response.bitLength != 8) {
-            status.value = Status.MI_ERR
-        }*/
+        /*        if (response.status != Status.MI_OK || response.bitLength != 8) {
+                    status.value = Status.MI_ERR
+                }*/
         return status.value to response.bitLength
     }
 

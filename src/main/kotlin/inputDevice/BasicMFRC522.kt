@@ -4,6 +4,10 @@ import com.pi4j.context.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 
+/**
+ * Translation of the BasicMFRC522 class from the mfrc522-python library, located at https://github.com/1AdityaX/mfrc522-python/tree/master/src/mfrc522
+ */
+
 class BasicMFRC522(
     val context: Context,
     val id: String,
