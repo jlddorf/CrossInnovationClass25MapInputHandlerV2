@@ -13,12 +13,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
 private val log = KotlinLogging.logger { }
 
 enum class Direction {
     CLOCKWISE, ANTI_CLOCKWISE
 }
+
+@Serializable
+data class EncoderEvent(val direction: Direction)
+
+@Serializable
+data object ButtonEvent
 
 interface RotaryEncoder {
     val turn: Flow<Direction>
