@@ -8,8 +8,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.example.inputDevice.KY_040
@@ -23,6 +25,8 @@ interface InputStation {
     val buttonPressFlow: Flow<ButtonEvent>
 }
 
+private val TREE_LIST = listOf(63001119)
+
 class InputStationImpl(
     id: Int,
     context: Context,
@@ -35,15 +39,24 @@ class InputStationImpl(
     private val inputReader = SimpleMFRC(context, "Input $id RFID", coroutineScope, spiBus, chipSelect, resetPinNum)
 
     private val _placedIdFlow = flow {
+        //As soon as an item is placed, emit it. Otherwise, try for 2 seconds, if no item is detected in this timeframe, switch back to null
         while (true) {
-            spiMutex.withLock {
-                emit(inputReader.readId())
+            val placedItem = withTimeoutOrNull(2000) {
+                var currentItem: Int? = null
+                while (currentItem == null) {
+                    spiMutex.withLock {
+                        currentItem = inputReader.readIdOnce()
+                    }.also {
+                        delay(200)
+                    }
+                }
+                currentItem
             }
-            delay(200)
+            emit(placedItem)
         }
     }
 
-    private val encoder: RotaryEncoder = KY_040(context, "Input $id Encoder", 17, 27, 22, coroutineScope)
+    private val encoder: RotaryEncoder = KY_040(context, "Input $id Encoder", 2, 3, 4, coroutineScope)
 
     override val encoderTurnFlow = encoder.turn.map { it.code }.map { EncoderEvent(id, it) }
 
@@ -54,14 +67,13 @@ class InputStationImpl(
     override val placedItem: StateFlow<Item?> =
         _placedIdFlow.mapLatest {
             when (it) {
-                1, 2 -> Item.TREE
+                in TREE_LIST -> Item.TREE
                 else -> null
             }
-        }.sample(300).stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
+        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override val changedItemFlow: Flow<RFIDEvent> = placedItem.mapLatest { RFIDEvent(id, it) }
-
 }
 
 @Serializable

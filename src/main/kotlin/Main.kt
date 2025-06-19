@@ -17,7 +17,11 @@ import io.ktor.server.websocket.pingPeriod
 import io.ktor.server.websocket.sendSerialized
 import io.ktor.server.websocket.timeout
 import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketExtension
+import io.ktor.websocket.close
+import io.ktor.websocket.readText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -34,8 +38,6 @@ import kotlin.time.Duration.Companion.seconds
 
 private val log = KotlinLogging.logger { }
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 fun main(args: Array<String>): Unit = runBlocking {
     //Configure logging
     PropertyConfigurator.configure("log4j.properties")
@@ -54,8 +56,11 @@ fun main(args: Array<String>): Unit = runBlocking {
         }*/
     val spiMutex = Mutex()
     val player1 = InputStationImpl(1, pi4j, this, SpiBus.BUS_0, SpiChipSelect.CS_0, 22, spiMutex)
+    launch {
+        player1.placedItem.collect { println("Item: $it") }
+    }
 
-    embeddedServer(Netty, 8090, host = "0.0.0.0") {
+/*    embeddedServer(Netty, 8090, host = "0.0.0.0") {
         install(WebSockets) {
             pingPeriod = 15.seconds
             timeout = 15.seconds
@@ -68,17 +73,20 @@ fun main(args: Array<String>): Unit = runBlocking {
                 log.info { "Server started" }
             }
             webSocket("/input/1") {
-                launch {
-                    player1.encoderTurnFlow.collect { event -> sendSerialized(event) }
+                launchInputControl(player1)
+                for (frame in incoming) {
+                    val text = (frame as? Frame.Text)?.readText()
+                    if (text == "close") {
+                        close(CloseReason(1, "Client requested close"))
+                    }
                 }
-                launch { player1.buttonPressFlow.collect { event -> sendSerialized(event) } }
             }
             monitor.subscribe(ApplicationStopped) {
                 log.info { "Closing Server, shutting down Resources" }
                 pi4j.shutdown()
             }
         }
-    }
+    }.start(wait = true)*/
     delay(100.seconds)
     pi4j.shutdown()
     log.info { "Successfully shutdown program resources, exiting application" }

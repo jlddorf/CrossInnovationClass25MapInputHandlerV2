@@ -16,6 +16,7 @@ private val log = KotlinLogging.logger { }
 interface RFIDReader {
     suspend fun read(): Pair<Int, String>
     suspend fun readId(): Int
+    suspend fun readIdOnce(): Int?
     suspend fun write(text: String): Pair<Int, String>
 }
 
@@ -54,6 +55,12 @@ class SimpleMFRC(
             log.debug { "Trying to read id with result ${response.value}" }
         }
         return response.value ?: -1
+    }
+
+    override suspend fun readIdOnce(): Int? {
+        return reader.readIDNoBlock().also {
+            log.debug { "Trying to read id with result $it" }
+        }
     }
 
     override suspend fun write(text: String): Pair<Int, String> {
