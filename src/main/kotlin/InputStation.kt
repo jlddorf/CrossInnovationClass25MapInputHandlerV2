@@ -32,7 +32,7 @@ class InputStationImpl(
     resetPinNum: Int,
     spiMutex: Mutex
 ) : InputStation {
-    private val inputReader = SimpleMFRC(context, "$id RFID", coroutineScope, spiBus, chipSelect, resetPinNum)
+    private val inputReader = SimpleMFRC(context, "Input $id RFID", coroutineScope, spiBus, chipSelect, resetPinNum)
 
     private val _placedIdFlow = flow {
         while (true) {
@@ -43,7 +43,7 @@ class InputStationImpl(
         }
     }
 
-    private val encoder: RotaryEncoder = KY_040(context, "$id Encoder", 17, 27, 22, coroutineScope)
+    private val encoder: RotaryEncoder = KY_040(context, "Input $id Encoder", 17, 27, 22, coroutineScope)
 
     override val encoderTurnFlow = encoder.turn.map { it.code }.map { EncoderEvent(id, it) }
 

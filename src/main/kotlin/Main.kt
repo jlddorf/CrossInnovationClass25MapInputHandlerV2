@@ -53,7 +53,7 @@ fun main(args: Array<String>): Unit = runBlocking {
             encoder.turnCounter.collect { log.debug { it } }
         }*/
     val spiMutex = Mutex()
-    val player1 = InputStationImpl("p1", pi4j, this, SpiBus.BUS_0, SpiChipSelect.CS_0, 22, spiMutex)
+    val player1 = InputStationImpl(1, pi4j, this, SpiBus.BUS_0, SpiChipSelect.CS_0, 22, spiMutex)
 
     embeddedServer(Netty, 8090, host = "0.0.0.0") {
         install(WebSockets) {
