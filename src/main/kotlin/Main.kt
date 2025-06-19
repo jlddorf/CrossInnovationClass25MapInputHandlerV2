@@ -38,7 +38,7 @@ import kotlin.time.Duration.Companion.seconds
 
 private val log = KotlinLogging.logger { }
 
-fun main(args: Array<String>): Unit = runBlocking {
+fun main(args: Array<String>): Unit {
     //Configure logging
     PropertyConfigurator.configure("log4j.properties")
     val pi4j = Pi4J.newAutoContext()
@@ -55,12 +55,8 @@ fun main(args: Array<String>): Unit = runBlocking {
             encoder.turnCounter.collect { log.debug { it } }
         }*/
     val spiMutex = Mutex()
-    val player1 = InputStationImpl(1, pi4j, this, SpiBus.BUS_0, SpiChipSelect.CS_0, 22, spiMutex)
-    launch {
-        player1.placedItem.collect { println("Item: $it") }
-    }
 
-/*    embeddedServer(Netty, 8090, host = "0.0.0.0") {
+  embeddedServer(Netty, 8090, host = "0.0.0.0") {
         install(WebSockets) {
             pingPeriod = 15.seconds
             timeout = 15.seconds
@@ -73,21 +69,18 @@ fun main(args: Array<String>): Unit = runBlocking {
                 log.info { "Server started" }
             }
             webSocket("/input/1") {
+                val player1 = InputStationImpl(1, pi4j, this, SpiBus.BUS_0, SpiChipSelect.CS_0, 22, spiMutex)
+
                 launchInputControl(player1)
-                for (frame in incoming) {
-                    val text = (frame as? Frame.Text)?.readText()
-                    if (text == "close") {
-                        close(CloseReason(1, "Client requested close"))
-                    }
-                }
+                outgoing.send(Frame.Text("Hello World!"))
+                outgoing.send(Frame.Text("Hello World!2"))
+                delay(100000)
             }
             monitor.subscribe(ApplicationStopped) {
                 log.info { "Closing Server, shutting down Resources" }
                 pi4j.shutdown()
+                log.info { "Successfully shutdown program resources, exiting application" }
             }
         }
-    }.start(wait = true)*/
-    delay(100.seconds)
-    pi4j.shutdown()
-    log.info { "Successfully shutdown program resources, exiting application" }
+    }.start(wait = true)
 }

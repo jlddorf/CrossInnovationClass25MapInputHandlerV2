@@ -21,7 +21,8 @@ fun DefaultWebSocketServerSession.launchInputControl(station: InputStation) {
         }
     }
     launch {
-        station.placedItem.collect {
+        station.changedItemFlow.collect {
+            println("Sending $it")
             log.trace { "Sending $it via station $station" }
             sendSerialized(it)
         }

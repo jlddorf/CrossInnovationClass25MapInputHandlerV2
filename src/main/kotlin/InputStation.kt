@@ -20,7 +20,7 @@ import org.example.inputDevice.SimpleMFRC
 
 interface InputStation {
     val placedItem: StateFlow<Item?>
-    val changedItemFlow: Flow<RFIDEvent>
+    val changedItemFlow: SharedFlow<RFIDEvent>
     val encoderTurnFlow: Flow<EncoderEvent>
     val buttonPressFlow: Flow<ButtonEvent>
 }
@@ -73,7 +73,7 @@ class InputStationImpl(
         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override val changedItemFlow: Flow<RFIDEvent> = placedItem.mapLatest { RFIDEvent(id, it) }
+    override val changedItemFlow: SharedFlow<RFIDEvent> = placedItem.mapLatest { RFIDEvent(id, it) }.shareIn(coroutineScope, SharingStarted.WhileSubscribed())
 }
 
 @Serializable
@@ -122,6 +122,7 @@ data class ButtonEvent(
     val buttonPressed: Boolean = true
 }
 
+@Serializable
 data class RFIDEvent(
     @SerialName("device_id")
     override val deviceId: Int,
