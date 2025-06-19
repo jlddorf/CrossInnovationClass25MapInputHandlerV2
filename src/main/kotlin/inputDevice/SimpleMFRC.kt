@@ -49,17 +49,17 @@ class SimpleMFRC(
 
     override suspend fun readId(): Int {
         val response = MutableStateFlow(reader.readIDNoBlock())
-        log.debug { "Trying to read id with result ${response.value}" }
+        log.trace { "Trying to read id with result ${response.value}" }
         while (response.value == null) {
             response.value = reader.readIDNoBlock()
-            log.debug { "Trying to read id with result ${response.value}" }
+            log.trace { "Trying to read id with result ${response.value}" }
         }
         return response.value ?: -1
     }
 
     override suspend fun readIdOnce(): Int? {
         return reader.readIDNoBlock().also {
-            log.debug { "Trying to read id with result $it" }
+            log.trace { "Trying to read id with result $it" }
         }
     }
 

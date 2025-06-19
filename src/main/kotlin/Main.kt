@@ -56,13 +56,13 @@ fun main(args: Array<String>): Unit {
         }*/
     val spiMutex = Mutex()
 
-  embeddedServer(Netty, 8090, host = "0.0.0.0") {
+    embeddedServer(Netty, 8090, host = "0.0.0.0") {
         install(WebSockets) {
             pingPeriod = 15.seconds
             timeout = 15.seconds
             maxFrameSize = Long.MAX_VALUE
             masking = false
-            contentConverter = KotlinxWebsocketSerializationConverter(Json)
+            contentConverter = KotlinxWebsocketSerializationConverter(Json { encodeDefaults = true })
         }
         routing {
             monitor.subscribe(ApplicationStarted) {
@@ -70,11 +70,12 @@ fun main(args: Array<String>): Unit {
             }
             webSocket("/input/1") {
                 val player1 = InputStationImpl(1, pi4j, this, SpiBus.BUS_0, SpiChipSelect.CS_0, 22, spiMutex)
-
                 launchInputControl(player1)
-                outgoing.send(Frame.Text("Hello World!"))
-                outgoing.send(Frame.Text("Hello World!2"))
-                delay(100000)
+                for (frame in incoming) {
+                    if (frame as? Frame.Text != null && frame.readText() == "close") {
+                        close()
+                    }
+                }
             }
             monitor.subscribe(ApplicationStopped) {
                 log.info { "Closing Server, shutting down Resources" }
