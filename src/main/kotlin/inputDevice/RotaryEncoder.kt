@@ -17,15 +17,9 @@ import kotlinx.serialization.Serializable
 
 private val log = KotlinLogging.logger { }
 
-enum class Direction {
-    CLOCKWISE, ANTI_CLOCKWISE
+enum class Direction(val code: Int) {
+    CLOCKWISE(1), ANTI_CLOCKWISE(-1)
 }
-
-@Serializable
-data class EncoderEvent(val direction: Direction)
-
-@Serializable
-data object ButtonEvent
 
 interface RotaryEncoder {
     val turn: Flow<Direction>

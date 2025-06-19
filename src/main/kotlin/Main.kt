@@ -6,6 +6,8 @@ import com.pi4j.io.spi.SpiChipSelect
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.serialization.WebsocketContentConverter
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
+import io.ktor.server.application.ApplicationStarted
+import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -62,13 +64,19 @@ fun main(args: Array<String>): Unit = runBlocking {
             contentConverter = KotlinxWebsocketSerializationConverter(Json)
         }
         routing {
+            monitor.subscribe(ApplicationStarted) {
+                log.info { "Server started" }
+            }
             webSocket("/input/1") {
                 launch {
                     player1.encoderTurnFlow.collect { event -> sendSerialized(event) }
                 }
                 launch { player1.buttonPressFlow.collect { event -> sendSerialized(event) } }
             }
-
+            monitor.subscribe(ApplicationStopped) {
+                log.info { "Closing Server, shutting down Resources" }
+                pi4j.shutdown()
+            }
         }
     }
     delay(100.seconds)
