@@ -59,9 +59,13 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         log.trace { "Wrote ${toSend.joinToString()} from data $toWrite into $register" }
     }
 
-    fun close() {
+    fun closeSpi() {
         spi.close()
         //TODO Close Pin connections as well
+    }
+
+    fun openSpi() {
+        spi.open()
     }
 
     private fun clearBitMask(register: Register, mask: Byte) {

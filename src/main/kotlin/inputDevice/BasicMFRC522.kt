@@ -55,6 +55,7 @@ class BasicMFRC522(
     }
 
     suspend fun readIDNoBlock(): Int? {
+        reader.openSpi()
         val response = reader.request(MFRC522.Companion.PICC.REQIDL.code)
         if (response.first != MFRC522.Companion.Status.MI_OK) {
             return null
@@ -63,6 +64,7 @@ class BasicMFRC522(
         if (antiColl.first != MFRC522.Companion.Status.MI_OK) {
             return null
         }
+        reader.closeSpi()
         return uidToNum(antiColl.second)
     }
 

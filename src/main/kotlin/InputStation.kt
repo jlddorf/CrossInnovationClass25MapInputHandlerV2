@@ -56,11 +56,11 @@ class InputStationImpl(
         }
     }
 
-    private val encoder: RotaryEncoder = KY_040(context, "Input $id Encoder", 2, 3, 4, coroutineScope)
+    private val encoder: RotaryEncoder = KY_040(context, "Input $id Encoder", 2, 3, 17, coroutineScope)
 
     override val encoderTurnFlow = encoder.turn.map { it.code }.map { EncoderEvent(id, it) }
 
-    override val buttonPressFlow: Flow<ButtonEvent> = encoder.buttonPress.map { ButtonEvent(id) }
+    override val buttonPressFlow = encoder.buttonPress.map { ButtonEvent(id) }
 
 
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
