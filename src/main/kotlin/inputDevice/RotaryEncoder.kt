@@ -62,7 +62,7 @@ class KY_040(
     private val dtPin = context.create(dtConfig)
 
     private val buttonConfig = DigitalInput.newConfigBuilder(context).apply {
-        id("button")
+        id("$id button")
         name("$id Button")
         address(swPinNumber)
         pull(PullResistance.PULL_DOWN)
