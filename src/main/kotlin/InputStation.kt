@@ -32,8 +32,11 @@ class InputStationImpl(
     context: Context,
     coroutineScope: CoroutineScope,
     spiBus: SpiBus,
-    chipSelect: SpiChipSelect,
+    chipSelect: Int,
     resetPinNum: Int,
+    encoderClkPin: Int,
+    encoderDtPin: Int,
+    encoderSwPin: Int,
     spiMutex: Mutex
 ) : InputStation {
     private val inputReader = SimpleMFRC(context, "Input $id RFID", coroutineScope, spiBus, chipSelect, resetPinNum)
@@ -56,7 +59,8 @@ class InputStationImpl(
         }
     }
 
-    private val encoder: RotaryEncoder = KY_040(context, "Input $id Encoder", 2, 3, 17, coroutineScope)
+    // The GPIO Pin numbers of the encoder
+    private val encoder: RotaryEncoder = KY_040(context, "Input $id Encoder", encoderClkPin, encoderDtPin, encoderSwPin, coroutineScope)
 
     override val encoderTurnFlow = encoder.turn.map { it.code }.map { EncoderEvent(id, it) }
 
@@ -73,7 +77,8 @@ class InputStationImpl(
         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override val changedItemFlow: SharedFlow<RFIDEvent> = placedItem.mapLatest { RFIDEvent(id, it) }.shareIn(coroutineScope, SharingStarted.WhileSubscribed())
+    override val changedItemFlow: SharedFlow<RFIDEvent> =
+        placedItem.mapLatest { RFIDEvent(id, it) }.shareIn(coroutineScope, SharingStarted.WhileSubscribed())
 }
 
 @Serializable

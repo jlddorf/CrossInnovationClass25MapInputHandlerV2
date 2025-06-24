@@ -25,7 +25,7 @@ class SimpleMFRC(
     id: String,
     coroutineScope: CoroutineScope,
     bus: SpiBus,
-    chipSelect: SpiChipSelect,
+    chipSelect: Int,
     resetPinNum: Int,
     key: List<Byte> = listOf(
         0xFF.toByte(),

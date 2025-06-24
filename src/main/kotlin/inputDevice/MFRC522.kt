@@ -24,13 +24,13 @@ import kotlin.experimental.or
 private val log = KotlinLogging.logger { }
 
 
-class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineScope, bus: SpiBus, chipSelect: SpiChipSelect, resetPinNum: Int) {
+class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineScope, bus: SpiBus, chipSelect: Int, resetPinNum: Int) {
     private val spiConfig = Spi.newConfigBuilder(context).apply {
         id(id)
         name("MFRC $id")
         bus(bus)
         mode(SpiMode.MODE_0)
-        chipSelect(chipSelect)
+        channel(chipSelect)
         baud(1_000_000)
     }
 

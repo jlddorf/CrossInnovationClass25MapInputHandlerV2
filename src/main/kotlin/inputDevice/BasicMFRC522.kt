@@ -15,7 +15,7 @@ class BasicMFRC522(
     id: String,
     coroutineScope: CoroutineScope,
     bus: SpiBus,
-    chipSelect: SpiChipSelect,
+    chipSelect: Int,
     resetPinNum: Int,
     val key: List<Byte> = listOf(
         0xFF.toByte(),

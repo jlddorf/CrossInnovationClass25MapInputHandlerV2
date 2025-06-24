@@ -4,36 +4,18 @@ import com.pi4j.Pi4J
 import com.pi4j.io.spi.SpiBus
 import com.pi4j.io.spi.SpiChipSelect
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.serialization.WebsocketContentConverter
-import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
+import io.ktor.serialization.kotlinx.*
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.install
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.netty.Netty
-import io.ktor.server.routing.routing
-import io.ktor.server.websocket.WebSockets
-import io.ktor.server.websocket.pingPeriod
-import io.ktor.server.websocket.sendSerialized
-import io.ktor.server.websocket.timeout
-import io.ktor.server.websocket.webSocket
-import io.ktor.websocket.CloseReason
-import io.ktor.websocket.Frame
-import io.ktor.websocket.WebSocketExtension
-import io.ktor.websocket.close
-import io.ktor.websocket.readText
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import io.ktor.server.engine.*
+import io.ktor.server.netty.*
+import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.serialization.json.Json
 import org.apache.log4j.PropertyConfigurator
-import org.example.inputDevice.RotaryEncoder
-import org.example.inputDevice.KY_040
-import org.example.inputDevice.MFRC522
-import org.example.inputDevice.RFIDReader
-import org.example.inputDevice.SimpleMFRC
-import java.net.http.WebSocket
 import kotlin.time.Duration.Companion.seconds
 
 private val log = KotlinLogging.logger { }
@@ -69,7 +51,7 @@ fun main(args: Array<String>): Unit {
                 log.info { "Server started" }
             }
             webSocket("/input/1") {
-                val player1 = InputStationImpl(1, pi4j, this, SpiBus.BUS_0, SpiChipSelect.CS_0, 22, spiMutex)
+                val player1 = InputStationImpl(1, pi4j, this, SpiBus.BUS_0, 0, 22, 2, 3, 17, spiMutex)
                 launchInputControl(player1)
                 for (frame in incoming) {
                     if (frame as? Frame.Text != null && frame.readText() == "close") {
