@@ -29,56 +29,37 @@ private val TREE_LIST = listOf(63001119)
 
 class InputStationImpl(
     id: Int,
-    context: Context,
-    coroutineScope: CoroutineScope,
-    spiBus: SpiBus,
-    chipSelect: Int,
-    resetPinNum: Int,
-    encoderClkPin: Int,
-    encoderDtPin: Int,
-    encoderSwPin: Int,
-    spiMutex: Mutex
+    coroutineScope: CoroutineScope
 ) : InputStation {
-    private val inputReader = SimpleMFRC(context, "Input $id RFID", coroutineScope, spiBus, chipSelect, resetPinNum)
 
-    private val _placedIdFlow = flow {
-        //As soon as an item is placed, emit it. Otherwise, try for 2 seconds, if no item is detected in this timeframe, switch back to null
-        while (true) {
-            val placedItem = withTimeoutOrNull(2000) {
-                var currentItem: Int? = null
-                while (currentItem == null) {
-                    spiMutex.withLock {
-                        currentItem = inputReader.readIdOnce()
-                    }.also {
-                        delay(200)
-                    }
-                }
-                currentItem
-            }
-            emit(placedItem)
-        }
-    }
 
-    // The GPIO Pin numbers of the encoder
-    private val encoder: RotaryEncoder = KY_040(context, "Input $id Encoder", encoderClkPin, encoderDtPin, encoderSwPin, coroutineScope)
+    override val encoderTurnFlow = MutableSharedFlow<EncoderEvent>()
 
-    override val encoderTurnFlow = encoder.turn.map { it.code }.map { EncoderEvent(id, it) }
-
-    override val buttonPressFlow = encoder.buttonPress.map { ButtonEvent(id) }
+    override val buttonPressFlow = MutableSharedFlow<ButtonEvent>()
 
 
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-    override val placedItem: StateFlow<Item?> =
-        _placedIdFlow.mapLatest {
-            when (it) {
-                in TREE_LIST -> Item.TREE
-                else -> null
-            }
-        }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
-
+    override val placedItem: StateFlow<Item?> =MutableStateFlow(null)
     @OptIn(ExperimentalCoroutinesApi::class)
-    override val changedItemFlow: SharedFlow<RFIDEvent> =
-        placedItem.mapLatest { RFIDEvent(id, it) }.shareIn(coroutineScope, SharingStarted.WhileSubscribed())
+    override val changedItemFlow = MutableSharedFlow<RFIDEvent>()
+    init {
+        coroutineScope.launch {
+            while (true) {
+                val input = readln()
+                try {
+                    encoderTurnFlow.emit(EncoderEvent(1, input.toInt()))
+                }
+                catch (e: Exception) {
+                    val item = when (input) {
+                        "tree" -> Item.TREE
+                        else -> null
+                    }
+                    changedItemFlow.emit(RFIDEvent(1, item))
+                }
+                delay(200)
+            }
+        }
+    }
 }
 
 @Serializable
