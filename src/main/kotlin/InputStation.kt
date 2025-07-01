@@ -2,13 +2,11 @@ package org.example
 
 import com.pi4j.context.Context
 import com.pi4j.io.spi.SpiBus
-import com.pi4j.io.spi.SpiChipSelect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
@@ -25,7 +23,12 @@ interface InputStation {
     val buttonPressFlow: Flow<ButtonEvent>
 }
 
-private val TREE_LIST = listOf(63001119)
+private val NATURE_LIST = listOf<Int>(63001119)
+private val MOBILITY_LIST = listOf<Int>()
+private val ENERGY_BUILDING_LIST = listOf<Int>()
+private val COMMUNITY_LIST = listOf<Int>()
+private val CIRCULAR_ECONOMY_LIST = listOf<Int>()
+private val LOCAL_CONSUMPTION_LIST = listOf<Int>()
 
 class InputStationImpl(
     id: Int,
@@ -71,7 +74,12 @@ class InputStationImpl(
     override val placedItem: StateFlow<Item?> =
         _placedIdFlow.mapLatest {
             when (it) {
-                in TREE_LIST -> Item.TREE
+                in NATURE_LIST -> Item.NATURE
+                in MOBILITY_LIST -> Item.MOBILITY
+                in ENERGY_BUILDING_LIST -> Item.ENERGY_BUILDING
+                in COMMUNITY_LIST -> Item.COMMUNITY
+                in CIRCULAR_ECONOMY_LIST -> Item.CIRCULAR_ECONOMY
+                in LOCAL_CONSUMPTION_LIST -> Item.LOCAL_CONSUMPTION
                 else -> null
             }
         }.stateIn(coroutineScope, SharingStarted.WhileSubscribed(), null)
