@@ -1,20 +1,13 @@
 package org.example
 
-import com.pi4j.context.Context
-import com.pi4j.io.spi.SpiBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.example.inputDevice.KY_040
-import org.example.inputDevice.RotaryEncoder
-import org.example.inputDevice.SimpleMFRC
 
 interface InputStation {
     val placedItem: StateFlow<Item?>
@@ -58,7 +51,7 @@ class InputStationImpl(
                         "energy_building" -> Item.ENERGY_BUILDING
                         "community" -> Item.COMMUNITY
                         "circular_economy" -> Item.CIRCULAR_ECONOMY
-                        "local_consmption" -> Item.LOCAL_CONSUMPTION
+                        "local_consumption" -> Item.LOCAL_CONSUMPTION
                         else -> null
                     }
                     changedItemFlow.emit(RFIDEvent(1, item))
