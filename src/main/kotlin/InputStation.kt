@@ -2,13 +2,11 @@ package org.example
 
 import com.pi4j.context.Context
 import com.pi4j.io.spi.SpiBus
-import com.pi4j.io.spi.SpiChipSelect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
@@ -25,7 +23,12 @@ interface InputStation {
     val buttonPressFlow: Flow<ButtonEvent>
 }
 
-private val TREE_LIST = listOf(63001119)
+private val NATURE_LIST = listOf<Int>(63001119)
+private val MOBILITY_LIST = listOf<Int>()
+private val ENERGY_BUILDING_LIST = listOf<Int>()
+private val COMMUNITY_LIST = listOf<Int>()
+private val CIRCULAR_ECONOMY_LIST = listOf<Int>()
+private val LOCAL_CONSUMPTION_LIST = listOf<Int>()
 
 class InputStationImpl(
     id: Int,
@@ -36,7 +39,6 @@ class InputStationImpl(
     override val encoderTurnFlow = MutableSharedFlow<EncoderEvent>()
 
     override val buttonPressFlow = MutableSharedFlow<ButtonEvent>()
-
 
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     override val placedItem: StateFlow<Item?> =MutableStateFlow(null)
@@ -51,7 +53,12 @@ class InputStationImpl(
                 }
                 catch (e: Exception) {
                     val item = when (input) {
-                        "tree" -> Item.TREE
+                        "nature" -> Item.NATURE
+                        "mobility" -> Item.MOBILITY
+                        "energy_building" -> Item.ENERGY_BUILDING
+                        "community" -> Item.COMMUNITY
+                        "circular_economy" -> Item.CIRCULAR_ECONOMY
+                        "local_consmption" -> Item.LOCAL_CONSUMPTION
                         else -> null
                     }
                     changedItemFlow.emit(RFIDEvent(1, item))
