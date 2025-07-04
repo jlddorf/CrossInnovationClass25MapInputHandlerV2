@@ -22,8 +22,6 @@ fun main(args: Array<String>): Unit {
 
     embeddedServer(Netty, 8090, host = "0.0.0.0") {
         install(WebSockets) {
-            pingPeriod = 15.seconds
-            timeout = 15.seconds
             maxFrameSize = Long.MAX_VALUE
             masking = false
             contentConverter = KotlinxWebsocketSerializationConverter(Json { encodeDefaults = true })
