@@ -23,12 +23,12 @@ interface InputStation {
     val buttonPressFlow: Flow<ButtonEvent>
 }
 
-private val NATURE_LIST = listOf<Int>(63001119)
-private val MOBILITY_LIST = listOf<Int>()
-private val ENERGY_BUILDING_LIST = listOf<Int>()
-private val COMMUNITY_LIST = listOf<Int>()
-private val CIRCULAR_ECONOMY_LIST = listOf<Int>()
-private val LOCAL_CONSUMPTION_LIST = listOf<Int>()
+private val NATURE_LIST = listOf(63001119, 61903279)
+private val MOBILITY_LIST = listOf(67152929)
+private val ENERGY_BUILDING_LIST = listOf(69280143)
+private val COMMUNITY_LIST = listOf(59836437)
+private val CIRCULAR_ECONOMY_LIST = listOf(66135643)
+private val LOCAL_CONSUMPTION_LIST = listOf(69296591)
 
 class InputStationImpl(
     id: Int,

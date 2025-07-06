@@ -13,9 +13,9 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import org.apache.log4j.PropertyConfigurator
-import kotlin.time.Duration.Companion.seconds
 
 private val log = KotlinLogging.logger { }
 
@@ -23,24 +23,10 @@ fun main(args: Array<String>): Unit {
     //Configure logging
     PropertyConfigurator.configure("log4j.properties")
     val pi4j = Pi4J.newAutoContext()
-    /*    val encoder: RotaryEncoder = KY_040(pi4j, "p1", 17, 27, 22, this)
-        launch {
-            encoder.turn.collect {
-                log.debug { it }
-            }
-        }
-        launch {
-            encoder.buttonPress.collect { log.debug { "Button has been pressed" } }
-        }
-        launch {
-            encoder.turnCounter.collect { log.debug { it } }
-        }*/
     val spiMutex = Mutex()
 
     embeddedServer(Netty, 8090, host = "0.0.0.0") {
         install(WebSockets) {
-            pingPeriod = 15.seconds
-            timeout = 15.seconds
             maxFrameSize = Long.MAX_VALUE
             masking = false
             contentConverter = KotlinxWebsocketSerializationConverter(Json { encodeDefaults = true })
@@ -50,7 +36,9 @@ fun main(args: Array<String>): Unit {
                 log.info { "Server started" }
             }
             webSocket("/input/1") {
-                val player1 = InputStationImpl(1, pi4j, this, SpiBus.BUS_0, 0, 22, 2, 3, 17, spiMutex)
+                val player1 = spiMutex.withLock {
+                    InputStationImpl(1, pi4j, this, SpiBus.BUS_0, 0, 16, 14, 15, 18, spiMutex)
+                }
                 launchInputControl(player1)
                 for (frame in incoming) {
                     if (frame as? Frame.Text != null && frame.readText() == "close") {
@@ -59,14 +47,26 @@ fun main(args: Array<String>): Unit {
                 }
             }
             webSocket("/input/2") {
-                val player2 = InputStationImpl(2, pi4j, this, SpiBus.BUS_0, 1, 18, 5, 6, 13, spiMutex)
+                val player2 = spiMutex.withLock {
+                    InputStationImpl(2, pi4j, this, SpiBus.BUS_0, 1, 20, 13, 19, 26, spiMutex)
+                }
                 launchInputControl(player2)
                 for (frame in incoming) {
                     if (frame as? Frame.Text != null && frame.readText() == "close") {
                         close()
                     }
                 }
-            }
+            }/*
+            webSocket("/input/3") {
+                val player3 =
+                    spiMutex.withLock { InputStationImpl(3, pi4j, this, SpiBus.BUS_0, 2, 21, 17, 27, 22, spiMutex) }
+                launchInputControl(player3)
+                for (frame in incoming) {
+                    if (frame as? Frame.Text != null && frame.readText() == "close") {
+                        close()
+                    }
+                }
+            }*/
             monitor.subscribe(ApplicationStopped) {
                 log.info { "Closing Server, shutting down Resources" }
                 pi4j.shutdown()

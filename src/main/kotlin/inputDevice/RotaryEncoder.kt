@@ -49,14 +49,14 @@ class KY_040(
         name("$id CLK Pin")
         address(clkPinNumber)
         pull(PullResistance.PULL_UP)
-        debounce(50L)
+        debounce(20L)
     }
     private val dtConfig = DigitalInput.newConfigBuilder(context).apply {
         id("${id}DT")
         name("$id DT Pin")
         address(dtPinNumber)
         pull(PullResistance.PULL_UP)
-        debounce(50L)
+        debounce(20L)
     }
     private val clkPin = context.create(clkConfig)
     private val dtPin = context.create(dtConfig)

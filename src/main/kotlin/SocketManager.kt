@@ -10,19 +10,19 @@ private val log = KotlinLogging.logger { }
 fun DefaultWebSocketServerSession.launchInputControl(station: InputStation) {
     launch {
         station.encoderTurnFlow.collect {
-            log.trace { "Sending $it via station $station" }
+            log.debug { "Sending $it via station $station" }
             sendSerialized(it)
         }
     }
     launch {
         station.buttonPressFlow.collect {
-            log.trace { "Sending $it via station $station" }
+            log.debug { "Sending $it via station $station" }
             sendSerialized(it)
         }
     }
     launch {
         station.changedItemFlow.collect {
-            log.trace { "Sending $it via station $station" }
+            log.debug { "Sending $it via station $station" }
             sendSerialized(it)
         }
     }

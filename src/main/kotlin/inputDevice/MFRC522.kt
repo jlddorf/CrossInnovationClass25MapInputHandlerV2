@@ -5,7 +5,6 @@ import com.pi4j.io.gpio.digital.DigitalOutput
 import com.pi4j.io.gpio.digital.DigitalState
 import com.pi4j.io.spi.Spi
 import com.pi4j.io.spi.SpiBus
-import com.pi4j.io.spi.SpiChipSelect
 import com.pi4j.io.spi.SpiMode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -31,7 +30,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         bus(bus)
         mode(SpiMode.MODE_0)
         channel(chipSelect)
-        baud(1_000_000)
+        baud(800_000)
     }
 
     private val resetConfig = DigitalOutput.newConfigBuilder(context).apply {
@@ -355,6 +354,7 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
     }
 
     init {
+        spi.open()
         resetPin.state(DigitalState.HIGH)
         reset()
 
@@ -367,6 +367,8 @@ class MFRC522(val context: Context, id: String, val coroutineScope: CoroutineSco
         writeRegister(Register.MODE, 0x3D.toByte())
 
         antennaOn()
+        log.debug { "Sucessfully initiated MFRC522 $id" }
+        spi.close()
     }
 
     companion object {
