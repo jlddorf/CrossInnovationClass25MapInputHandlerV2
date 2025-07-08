@@ -56,7 +56,9 @@ fun main(args: Array<String>): Unit {
                         close()
                     }
                 }
-            }/*
+            }
+            //Enable once the third station works :)
+            /*
             webSocket("/input/3") {
                 val player3 =
                     spiMutex.withLock { InputStationImpl(3, pi4j, this, SpiBus.BUS_0, 2, 21, 17, 27, 22, spiMutex) }
