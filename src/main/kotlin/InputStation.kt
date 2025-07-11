@@ -8,6 +8,12 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.example.inputDevice.Direction
+import java.awt.event.KeyAdapter
+import java.awt.event.KeyEvent
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseWheelEvent
+import javax.swing.JFrame
 
 interface InputStation {
     val placedItem: StateFlow<Item?>
@@ -34,36 +40,71 @@ class InputStationImpl(
     override val buttonPressFlow = MutableSharedFlow<ButtonEvent>()
 
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-    override val placedItem: StateFlow<Item?> =MutableStateFlow(null)
+    override val placedItem: StateFlow<Item?> = MutableStateFlow(null)
+
     @OptIn(ExperimentalCoroutinesApi::class)
     override val changedItemFlow = MutableSharedFlow<RFIDEvent>()
+
     init {
-        coroutineScope.launch {
-            while (true) {
-                val input = readln()
-                try {
-                    encoderTurnFlow.emit(EncoderEvent(1, input.toInt()))
-                }
-                catch (e: Exception) {
-                    if (input == "button") {
-                        buttonPressFlow.emit(ButtonEvent(1))
-                    }
-                    else {
-                        val item = when (input) {
-                            "nature" -> Item.NATURE
-                            "mobility" -> Item.MOBILITY
-                            "energy_building" -> Item.ENERGY_BUILDING
-                            "community" -> Item.COMMUNITY
-                            "circular_economy" -> Item.CIRCULAR_ECONOMY
-                            "local_consumption" -> Item.LOCAL_CONSUMPTION
-                            else -> null
+        var currentItem = 0
+        val frame = JFrame("Adapter")
+        frame.isVisible = true
+        val mouseAdapter = object: MouseAdapter() {
+            override fun mouseWheelMoved(e: MouseWheelEvent?) {
+                e?.wheelRotation?.let {
+                    if (it > 0) {
+                        coroutineScope.launch {
+                            encoderTurnFlow.emit(EncoderEvent(1, 1))
                         }
-                        changedItemFlow.emit(RFIDEvent(1, item))
+                    }
+                    else if (it < 0) {
+                        coroutineScope.launch {
+                            encoderTurnFlow.emit(EncoderEvent(1, -1))
+                        }
                     }
                 }
-                delay(200)
             }
         }
+        frame.addMouseListener(mouseAdapter)
+        val adapter: KeyAdapter = object : KeyAdapter() {
+            override fun keyPressed(e: KeyEvent?) {
+                when (e?.keyCode) {
+                    KeyEvent.VK_LEFT -> {
+                        currentItem = (currentItem - 1)
+                        if (currentItem < 0) {
+                            currentItem = Item.entries.size - 1
+                        }
+                        coroutineScope.launch {
+                            changedItemFlow.emit(RFIDEvent(1, Item.entries.get(currentItem)))
+                        }
+                    }
+
+                    KeyEvent.VK_RIGHT -> {
+                        currentItem = (currentItem + 1) % Item.entries.size
+                        coroutineScope.launch {
+                            changedItemFlow.emit(RFIDEvent(1, Item.entries.get(currentItem)))
+                        }
+                    }
+
+                    KeyEvent.VK_UP -> {
+                        coroutineScope.launch {
+                            encoderTurnFlow.emit(EncoderEvent(1, 1))
+                        }
+                    }
+                    KeyEvent.VK_DOWN -> {
+                        coroutineScope.launch {
+                            encoderTurnFlow.emit(EncoderEvent(1, -1))
+                        }
+                    }
+                    KeyEvent.VK_SPACE -> {
+                        coroutineScope.launch {
+                            buttonPressFlow.emit(ButtonEvent(1))
+                            buttonPressFlow.emit(ButtonEvent(2))                        }
+                    }
+                }
+            }
+        }
+        frame.addKeyListener(adapter)
     }
 }
 
