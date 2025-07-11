@@ -12,7 +12,6 @@ import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.serialization.json.Json
 import org.apache.log4j.PropertyConfigurator
-import kotlin.time.Duration.Companion.seconds
 
 private val log = KotlinLogging.logger { }
 

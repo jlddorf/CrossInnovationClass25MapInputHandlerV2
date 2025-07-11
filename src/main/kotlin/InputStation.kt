@@ -45,16 +45,21 @@ class InputStationImpl(
                     encoderTurnFlow.emit(EncoderEvent(1, input.toInt()))
                 }
                 catch (e: Exception) {
-                    val item = when (input) {
-                        "nature" -> Item.NATURE
-                        "mobility" -> Item.MOBILITY
-                        "energy_building" -> Item.ENERGY_BUILDING
-                        "community" -> Item.COMMUNITY
-                        "circular_economy" -> Item.CIRCULAR_ECONOMY
-                        "local_consumption" -> Item.LOCAL_CONSUMPTION
-                        else -> null
+                    if (input == "button") {
+                        buttonPressFlow.emit(ButtonEvent(1))
                     }
-                    changedItemFlow.emit(RFIDEvent(1, item))
+                    else {
+                        val item = when (input) {
+                            "nature" -> Item.NATURE
+                            "mobility" -> Item.MOBILITY
+                            "energy_building" -> Item.ENERGY_BUILDING
+                            "community" -> Item.COMMUNITY
+                            "circular_economy" -> Item.CIRCULAR_ECONOMY
+                            "local_consumption" -> Item.LOCAL_CONSUMPTION
+                            else -> null
+                        }
+                        changedItemFlow.emit(RFIDEvent(1, item))
+                    }
                 }
                 delay(200)
             }
